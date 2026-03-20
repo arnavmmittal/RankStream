@@ -12,6 +12,7 @@ venv/
 *.pkl
 *.joblib
 !model/*.onnx
+!model/*.pkl
 
 # Jupyter
 .ipynb_checkpoints/
