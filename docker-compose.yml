@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  # Apache Kafka with KRaft (no Zookeeper needed)
+  kafka:
+    image: bitnami/kafka:latest
+    container_name: rankstream-kafka
+    ports:
+      - "9092:9092"
+      - "9094:9094"
+    environment:
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - kafka_data:/bitnami/kafka
+
+  # Redis for feature store and caching
+  redis:
+    image: redis:7-alpine
+    container_name: rankstream-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redis_data:/data
+
+  # Click stream generator (Kafka producer)
+  click-generator:
+    build:
+      context: ./services/click-generator
+      dockerfile: Dockerfile
+    container_name: rankstream-click-generator
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - EVENTS_PER_SECOND=100
+    restart: unless-stopped
+
+  # Feature pipeline (Kafka consumer + Redis writer)
+  feature-pipeline:
+    build:
+      context: ./services/feature-pipeline
+      dockerfile: Dockerfile
+    container_name: rankstream-feature-pipeline
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    restart: unless-stopped
+
+  # Ranking API service
+  ranking-api:
+    build:
+      context: ./services/ranking-api
+      dockerfile: Dockerfile
+    container_name: rankstream-ranking-api
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    restart: unless-stopped
+
+  # Kafka UI for visualization (optional but impressive for demos)
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: rankstream-kafka-ui
+    ports:
+      - "8080:8080"
+    depends_on:
+      - kafka
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=rankstream
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+
+volumes:
+  kafka_data:
+  redis_data:

@@ -1,0 +1,1 @@
+["query_popularity", "query_length", "doc_quality", "doc_freshness", "doc_length_log", "bm25_score", "semantic_similarity", "historical_ctr", "avg_dwell_time_log", "num_impressions_log", "user_affinity", "position_inverse"]

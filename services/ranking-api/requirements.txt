@@ -1,0 +1,6 @@
+fastapi==0.109.0
+uvicorn==0.27.0
+redis==5.0.1
+numpy==1.26.3
+lightgbm==4.3.0
+pydantic==2.6.0

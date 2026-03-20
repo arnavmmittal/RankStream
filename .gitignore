@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.env
+
+# Model artifacts
+*.onnx
+*.pkl
+*.joblib
+!model/*.onnx
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Data
+data/
+*.csv
+*.parquet
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
